@@ -1,67 +1,51 @@
 package mongodbi
 
 import (
-	"errors"
-	"os"
+	"gopkg.in/mgo.v2"
 
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/mgo.v2"
 )
 
-var a App
-
-// App app
-type App struct {
-	Session    *mgo.Session
-	Collection *mgo.Collection
-	Database   *mgo.Database
+// DAL is the data access layer for them mongo database
+type DAL interface {
+	Insert(collectionName string, docs ...interface{}) error
 }
 
-// DB db
-func DB(uri string, db string) *App {
-
-	a.Session = AppCollection(uri)
-	a.Database = a.Session.DB(db)
-
-	return &a
+// MongoDAL is an implementation of DataAccessLayer for a defined above
+type MongoDAL struct {
+	session *mgo.Session
+	dbName  string
 }
 
-// SetCollection s
-func (a *App) SetCollection(coll string) {
-
-	a.Collection = a.Database.C(coll)
-}
-
-// AppCollection a
-func AppCollection(uri string) *mgo.Session {
-
-	//uri := "mongodb://mastende:mastende@ds115573.mlab.com:15573/mastende-test"
-	if uri == "" {
-		log.Error("No database url string provided")
-		os.Exit(1)
+// NewMongoDAL creates a MongoDAL
+func NewMongoDAL(dbURI string, dbName string) (DAL, error) {
+	session, err := mgo.Dial(dbURI)
+	mongo := &MongoDAL{
+		session: session,
+		dbName:  dbName,
 	}
-
-	sess, err := mgo.Dial(uri)
-	if err != nil {
-
-		log.WithFields(log.Fields{
-			"error_message": err,
-		}).Error("Failed to connect to mongo server.")
-		os.Exit(1)
-	}
-
-	//defer sess.Close()
-
-	//sess.SetSafe(&mgo.Safe{})
-
-	return sess
+	return mongo, err
 }
 
-// Update u
-func Update(db *App, sel interface{}, change interface{}) error {
+// c is a helper method to get a collection from the session
+func (m *MongoDAL) c(collection string) *mgo.Collection {
+	return m.session.DB(m.dbName).C(collection)
+}
 
-	if err := db.Collection.Update(sel, change); err != nil {
-		return errors.New(err.Error())
-	}
-	return nil
+// Insert stores documents in mongo
+func (m *MongoDAL) Insert(collectionName string, docs ...interface{}) error {
+
+	log.WithFields(log.Fields{
+		"collection": collectionName,
+		"documents":  docs,
+	}).Info("Inserting ...")
+
+	return m.c(collectionName).Insert(docs)
+}
+
+// Persist new record into database
+func Persist(collection string, doc interface{}, data DAL) interface{} {
+
+	data.Insert(collection, doc)
+	return doc
 }

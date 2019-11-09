@@ -1,14 +1,30 @@
 package mongodbi_test
 
 import (
-	"os"
 	"testing"
 
 	dbi "github.com/khosimorafo/mongodbi"
-
-	assert "github.com/stretchr/testify/assert"
+	"github.com/khosimorafo/mongodbi/mocks"
+	"github.com/stretchr/testify/assert"
 )
 
+type Thing struct{}
+
+func TestInsert(t *testing.T) {
+
+	mockThing := Thing{}
+
+	mockDAL := &mocks.DAL{}
+	mockDAL.On("Insert", "foo", mockThing).Return(nil)
+
+	actual := dbi.Persist("foo", mockThing, mockDAL)
+
+	mockDAL.AssertExpectations(t)
+
+	assert.Equal(t, mockThing, actual, "should return a Thing")
+}
+
+/*
 var a dbi.App
 
 var url = "mongodb://mastende:mastende@ds115573.mlab.com:15573/mastende-test"
@@ -41,3 +57,4 @@ func TestCollectionCreate(t *testing.T) {
 
 	assert.Equal(t, c, "testcollection", "the should be equal")
 }
+*/
