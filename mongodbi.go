@@ -1,6 +1,8 @@
 package mongodbi
 
 import (
+	"errors"
+
 	"gopkg.in/mgo.v2"
 
 	log "github.com/sirupsen/logrus"
@@ -14,16 +16,34 @@ type DAL interface {
 // MongoDAL is an implementation of DataAccessLayer for a defined above
 type MongoDAL struct {
 	session *mgo.Session
+	db      *mgo.Database
 	dbName  string
 }
 
 // NewMongoDAL creates a MongoDAL
 func NewMongoDAL(dbURI string, dbName string) (DAL, error) {
+
+	if dbURI == "" {
+		log.WithFields(log.Fields{
+			"URI": dbURI,
+		}).Error("Invalid URI string provided.")
+
+		return nil, errors.New("Invalid URI provided")
+	}
+
 	session, err := mgo.Dial(dbURI)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error_message": err.Error(),
+		}).Info("Database onnection error.")
+	}
+
 	mongo := &MongoDAL{
 		session: session,
+		db:      session.DB(dbName),
 		dbName:  dbName,
 	}
+
 	return mongo, err
 }
 
@@ -38,7 +58,7 @@ func (m *MongoDAL) Insert(collectionName string, docs ...interface{}) error {
 	log.WithFields(log.Fields{
 		"collection": collectionName,
 		"documents":  docs,
-	}).Info("Inserting ...")
+	}).Info("Inserting record into db...")
 
 	return m.c(collectionName).Insert(docs)
 }
